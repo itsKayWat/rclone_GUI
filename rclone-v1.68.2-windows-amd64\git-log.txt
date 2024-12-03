@@ -1,0 +1,235 @@
+commit f2d16ab4c5856098abe9e194c5f4dde6bfc56b66
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Fri Nov 15 12:20:50 2024 +0000
+
+    Version v1.68.2
+
+commit c0fc4fe0caa23bcd153da5f476369d7c1fcd91a1
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Thu Nov 14 15:27:14 2024 +0000
+
+    s3: fix multitenant multipart uploads with CEPH
+    
+    CEPH uses a special bucket form `tenant:bucket` for multitentant
+    access using S3 as documented here:
+    
+    https://docs.ceph.com/en/reef/radosgw/multitenancy/#s3
+    
+    However when doing multipart uploads, in the reply from
+    `CreateMultipart` the `tenant:` was missing from the `Bucket` response
+    rclone was using to build the `UploadPart` request. This caused a 404
+    failure return. This may be a CEPH bug, but it is easy to work around.
+    
+    This changes the code to use the `Bucket` and `Key` that we used in
+    `CreateMultipart` in `UploadPart` rather than the one returned from
+    `CreateMultipart` which fixes the problem.
+    
+    See: https://forum.rclone.org/t/rclone-zcat-does-not-work-with-a-multitenant-ceph-backend/48618
+
+commit 669b2f2669cacd634faa2bcecb589b76e1402533
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Wed Nov 13 11:55:28 2024 +0000
+
+    local: fix permission and ownership on symlinks with --links and --metadata
+    
+    Before this change, if writing to a local backend with --metadata and
+    --links, if the incoming metadata contained mode or ownership
+    information then rclone would apply the mode/ownership to the
+    destination of the link not the link itself.
+    
+    This fixes the problem by using the link safe sycall variants
+    lchown/fchmodat when --links and --metadata is in use. Note that Linux
+    does not support setting permissions on symlinks, so rclone emits a
+    debug message in this case.
+    
+    This also fixes setting times on symlinks on Windows which wasn't
+    implemented for atime, mtime and was incorrectly setting the target of
+    the symlink for btime.
+    
+    See: https://github.com/rclone/rclone/security/advisories/GHSA-hrxh-9w67-g4cv
+
+commit e1ba10a86e36d1ddfb2b47ab87e72b92a8f66ad7
+Author: Dimitrios Slamaris <dim0x69@users.noreply.github.com>
+Date:   Tue Nov 12 12:42:54 2024 +0100
+
+    bisync: fix output capture restoring the wrong output for logrus
+    
+    Before this change, if rclone is used as a library and logrus is used
+    after a call to rc `sync/bisync`, logging does not work anymore and
+    leads to writing to a closed pipe.
+    
+    This change restores the output correctly.
+    
+    Fixes #8158
+
+commit 022442cf582c7b6ff3cc92dbb4e9ef44831ee9f8
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Mon Nov 11 17:54:59 2024 +0000
+
+    build: fix comments after golangci-lint upgrade
+
+commit 5cc4488294c325f8bfc32e871c74609494aceeb8
+Author: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+Date:   Mon Nov 4 23:43:08 2024 +0000
+
+    build(deps): bump github.com/golang-jwt/jwt/v4 from 4.5.0 to 4.5.1
+    
+    Bumps [github.com/golang-jwt/jwt/v4](https://github.com/golang-jwt/jwt) from 4.5.0 to 4.5.1.
+    - [Release notes](https://github.com/golang-jwt/jwt/releases)
+    - [Changelog](https://github.com/golang-jwt/jwt/blob/main/VERSION_HISTORY.md)
+    - [Commits](https://github.com/golang-jwt/jwt/compare/v4.5.0...v4.5.1)
+    
+    ---
+    updated-dependencies:
+    - dependency-name: github.com/golang-jwt/jwt/v4
+      dependency-type: direct:production
+    ...
+    
+    Signed-off-by: dependabot[bot] <support@github.com>
+
+commit ec9566c5c3a60d8d8ae5ea845c2acd739d45cb8c
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Fri Nov 8 17:39:36 2024 +0000
+
+    pikpak: fix fatal crash on startup with token that can't be refreshed
+
+commit f6976eb4c481bfed696f0cd57d11e1163a6faadd
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Thu Oct 24 11:20:37 2024 +0100
+
+    serve s3: fix excess locking which was making serve s3 single threaded
+    
+    The fix for this was in the upstream library to narrow the locking
+    window.
+    
+    See: https://forum.rclone.org/t/can-rclone-serve-s3-handle-more-than-one-client/48329/
+
+commit c242c00799a54dd8fd37334b23c10dc00301a000
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Thu Oct 3 10:29:07 2024 +0100
+
+    onedrive: fix Retry-After handling to look at 503 errors also
+    
+    According to the Microsoft docs a Retry-After header can be returned
+    on 429 errors and 503 errors, but before this change we were only
+    checking for it on 429 errors.
+    
+    See: https://forum.rclone.org/t/onedrive-503-response-retry-after-not-used/48045
+
+commit bf954b74ffb1d96203e49af68681655ad380f569
+Author: Kaloyan Raev <kaloyan@storj.io>
+Date:   Wed Oct 16 17:33:01 2024 +0300
+
+    s3: Storj provider: fix server-side copy of files bigger than 5GB
+    
+    Like some other S3-compatible providers, Storj does not currently
+    implements UploadPartCopy and returns NotImplemented errors for
+    multi-part server side copies.
+    
+    This patch works around the problem by raising --s3-copy-cutoff for
+    Storj to the maximum. This means that rclone will never use
+    multi-part copies for files in Storj. This includes files larger than
+    5GB which (according to AWS documentation) must be copied with
+    multi-part copy. This works fine for Storj.
+    
+    See https://github.com/storj/roadmap/issues/40
+
+commit 88f0770d0af838408ce266932a708475269e8996
+Author: tgfisher <tgfisher@stanford.edu>
+Date:   Mon Oct 21 00:10:09 2024 -0700
+
+    docs: mention that inline comments are not supported in a filter-file
+
+commit 41d905c9b008e0953e839374f98cde560e8f1be6
+Author: Randy Bush <randy@psg.com>
+Date:   Mon Oct 14 04:25:25 2024 -0700
+
+    docs: fix forward refs in step 9 of using your own client id
+
+commit 300a063b5eff1ce13f466dfd20893efdfc81452e
+Author: Alexandre Hamez <199517+ahamez@users.noreply.github.com>
+Date:   Thu Oct 10 09:57:43 2024 +0200
+
+    docs: fix Scaleway Glacier website URL
+
+commit 61bf29ed5e5e82571ea9b99006317dcb5347bed9
+Author: Simon Bos <simon@simonbos.be>
+Date:   Sun Oct 6 14:11:11 2024 +0200
+
+    dlna: fix loggingResponseWriter disregarding log level
+
+commit 31917175720a67cd320fd4eef3e5047ad5304491
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Thu Oct 3 10:21:05 2024 +0100
+
+    s3: fix crash when using --s3-download-url after migration to SDKv2
+    
+    Before this change rclone was crashing when the download URL did not
+    supply an X-Amz-Storage-Class header.
+    
+    This change allows the header to be missing.
+    
+    See: https://forum.rclone.org/t/sigsegv-on-ubuntu-24-04/48047
+
+commit 961dfe97b50d34d04f4f90f6544726e8212c9c1c
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Tue Oct 1 17:43:24 2024 +0100
+
+    docs: update overview to show pcloud can set modtime
+    
+    See 258092f9c637ab26 and #7896
+
+commit 22612b4b3895a1d9c5bd775577ea92f1fb0f9b73
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Tue Sep 24 12:23:07 2024 +0100
+
+    Add RcloneView as a sponsor
+
+commit b9927461c3d553042a15d1425f77e447ddb8dcea
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Thu Sep 26 17:52:43 2024 +0100
+
+    accounting: fix wrong message on SIGUSR2 to enable/disable bwlimit
+    
+    This was caused by the message code only looking at one of the
+    bandwidth filters, not all of them.
+    
+    Fixes #8104
+
+commit 6d04be99f2bf157501a6b9dd88cf9c4943a1f4e5
+Author: wiserain <mail275@gmail.com>
+Date:   Sat Sep 21 10:22:31 2024 +0900
+
+    pikpak: fix cid/gcid calculations for fs.OverrideRemote
+    
+    Previously, cid/gcid (custom hash for pikpak) calculations failed when
+    attempting to unwrap object info from `fs.OverrideRemote`.
+    
+    This commit introduces a new function that can correctly unwrap
+    object info from both regular objects and `fs.OverrideRemote` types,
+    ensuring uploads with accurate cid/gcid calculations in all scenarios.
+
+commit 06ae0dfa5483af20c6a0ace9ed8a4a74746870f6
+Author: nielash <nielronash@gmail.com>
+Date:   Mon Sep 16 16:24:19 2024 -0400
+
+    local: fix --copy-links on macOS when cloning
+    
+    Before this change, --copy-links erroneously behaved like --links when using cloning
+    on macOS, and cloning was not supported at all when using --links.
+    
+    After this change, --copy-links does what it's supposed to, and takes advantage of
+    cloning when possible, by copying the file being linked to instead of the link
+    itself.
+    
+    Cloning is now also supported in --links mode for regular files (which benefit
+    most from cloning). symlinks in --links mode continue to be tossed back to be
+    handled by rclone's special translation logic.
+    
+    See https://forum.rclone.org/t/macos-local-to-local-copy-with-copy-links-causes-error/47671/5?u=nielash
+
+commit 912f29b5b814c58e1d05532f0b98512de3a07007
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Tue Sep 24 17:25:53 2024 +0100
+
+    Start v1.68.2-DEV development
