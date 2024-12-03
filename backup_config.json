@@ -1,0 +1,9 @@
+{
+    "destinations": [
+        {
+            "type": "Google Drive",
+            "name": "Auto-Backup",
+            "path": null
+        }
+    ]
+}
