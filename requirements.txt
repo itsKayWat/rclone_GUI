@@ -1,0 +1,9 @@
+PyQt5>=5.15.0
+google-auth-oauthlib>=0.4.6
+google-auth-httplib2>=0.1.0
+google-api-python-client>=2.0.0
+pywin32>=228; platform_system=="Windows"
+psutil>=5.8.0
+pyinstaller>=5.0.0; platform_system=="Windows"
+selenium>=4.0.0
+webdriver_manager>=3.8.0
